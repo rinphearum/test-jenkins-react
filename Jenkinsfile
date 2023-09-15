@@ -40,7 +40,7 @@ pipeline {
     stages {
         stage('Build') {
             steps {
-                sh 'sudo docker build -t ${MY_IMAGE} .'
+                sh 'docker build -t ${MY_IMAGE} .'
             }
         }
         stage('Test') {
@@ -51,16 +51,16 @@ pipeline {
         stage('Deploy') {
             steps {
                 script{
-                def existImageID= sh(script: 'sudo docker ps -aq -f name="${MY_IMAGE}"',returnStdout:true)
+                def existImageID= sh(script: 'docker ps -aq -f name="${MY_IMAGE}"',returnStdout:true)
                     echo "ExistImageID:${existImageID}"
                     if(existImageID){
                         echo '${existImageID} is removing ...'
-                        sh 'sudo docker rm -f ${MY_IMAGE}'
+                        sh 'docker rm -f ${MY_IMAGE}'
                     }else{
                        echo 'No existing container'
                     }
                 }
-                sh 'sudo docker run -d -p 3000:80 --name ${MY_IMAGE} ${MY_IMAGE}'
+                sh 'docker run -d -p 3000:80 --name ${MY_IMAGE} ${MY_IMAGE}'
             }
         }
     }
