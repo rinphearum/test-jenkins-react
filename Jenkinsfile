@@ -32,7 +32,7 @@
 pipeline {
     agent any
     tools{
-        nodejs 'nodejs'
+        nodejs 'node'
     }
     environment{
         MY_IMAGE='react-app'
