@@ -72,7 +72,7 @@ pipeline {
         
         stage('Trigger ManifestUpdate') {
             steps {
-                    build job: 'updatemanifest', parameters: [string(name: 'DOCKERTAG', value: env.BUILD_NUMBER)]
+                    build job: 'job2', parameters: [string(name: 'DOCKERTAG', value: env.BUILD_NUMBER)]
             }
         }
         
