@@ -1,67 +1,81 @@
-// pipeline {
-//   agent {
-//     node {
-//       label 'slave_worker'
-//     }
-//   }
-//   environment{
-//         MY_IMAGE='react-image'
-//   }
-//   tools {
-//     nodejs 'nodejs'
-//   }
-//   stages {
-//     stage('Build') {
-//       steps {
-//         sh 'docker build -t sophak12/react-web .'
-//       }
-//     }
-
-//     stage('Deploy') {
-//       steps {
-//         sh 'docker run -d -p 3000:80 sophak12/react-web'
-        
-//       }
-//     }
-//   }
-// }
-
-// // work with agent node
-
-// ----------------------- port allocated--------------------------
 pipeline {
     agent any
-    tools{
-        nodejs 'node'
+    tools {
+        nodejs 'nodejs'
     }
-    environment{
-        MY_IMAGE='react-app'
+
+    environment {
+        DOCKER_REGISTRY = 'phearum'
+        IMAGE_NAME = 'react-jenkin'
+        CONTAINER_NAME = 'my-container' // Specify the name of your container
     }
+
     stages {
         stage('Build') {
             steps {
-                sh 'docker build -t ${MY_IMAGE} .'
+                sh 'npm install'
+                // sh 'npm run build'
             }
         }
         stage('Test') {
             steps {
-                echo "Testing .... dg mix teh"
+                // sh 'npm run test'
+                echo "Test"
+                sh "echo IMAGE_NAME is ${env.IMAGE_NAME}" 
             }
         }
-        stage('Deploy') {
+        stage('Check for Existing Container') {
             steps {
-                script{
-                def existImageID= sh(script: 'docker ps -aq -f name="${MY_IMAGE}"',returnStdout:true)
-                    echo "ExistImageID:${existImageID}"
-                    if(existImageID){
-                        echo '${existImageID} is removing ...'
-                        sh 'docker rm -f ${MY_IMAGE}'
-                    }else{
-                       echo 'No existing container'
+                script {
+                    def containerId = sh(script: "docker ps -a --filter name=${env.CONTAINER_NAME} -q", returnStdout: true).trim()
+                    sh "echo containerId is ${containerId}" 
+                    if (containerId) {
+                        sh "docker stop ${containerId}"
+                        sh "docker rm ${containerId}"
+                    } else {
+                        sh "echo No existing container to remove"
                     }
                 }
-                sh 'docker run -d -p 3000:80 --name ${MY_IMAGE} ${MY_IMAGE}'
             }
         }
+        stage('Build Image') {
+            steps {
+                script {
+                    def buildNumber = currentBuild.number
+                    def imageTag = "${IMAGE_NAME}:${buildNumber}"
+                    sh "docker build -t ${DOCKER_REGISTRY}/${imageTag} ."
+
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub-cred',
+                            passwordVariable: 'PASS', usernameVariable: 'USER')]) {
+                        sh "echo \$PASS | docker login -u \$USER --password-stdin"
+                        sh "docker push ${DOCKER_REGISTRY}/${imageTag}"
+                    }
+                }
+            }
+        }
+        // stage ('Deploy') {
+        //     steps {
+        //         script {
+        //             sh "docker run -p 3000:80 -d --name ${env.CONTAINER_NAME} ${DOCKER_REGISTRY}/${imageTag}"
+        //         }
+        //     }
+        // }
+        // stage('Clone Repository') {
+        //     steps {
+        //         script {
+        //             sh 'rm -rf argocd-app-config'
+        //             // sh 'git clone https://github.com/KimheangKen/argocd-app-config.git'
+                    
+        //         }
+        //     }
+        // }
+        
+        stage('Trigger ManifestUpdate') {
+            steps {
+                    build job: 'updatemanifest', parameters: [string(name: 'DOCKERTAG', value: env.BUILD_NUMBER)]
+            }
+        }
+        
+
     }
 }
